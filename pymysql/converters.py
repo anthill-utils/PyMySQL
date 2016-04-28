@@ -1,7 +1,7 @@
 from ._compat import PY2, text_type, long_type, JYTHON, IRONPYTHON, unichr
 
 import datetime
-import json
+import ujson
 from decimal import Decimal
 import re
 import time
@@ -340,7 +340,7 @@ def through(x):
 
 def convert_json(s):
     try:
-        return json.loads(s)
+        return ujson.loads(s)
     except ValueError:
         return {}
 
