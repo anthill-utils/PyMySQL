@@ -12,15 +12,21 @@ from . import err
 #: executemany only suports simple bulk insert.
 #: You can use it to load large dataset.
 RE_INSERT_VALUES = re.compile(
-    r"\s*((?:INSERT|REPLACE)\s.+\sVALUES?\s+)" +
+    r"\s*((?:INSERT|REPLACE)\b.+\bVALUES?\s*)" +
     r"(\(\s*(?:%s|%\(.+\)s)\s*(?:,\s*(?:%s|%\(.+\)s)\s*)*\))" +
-    r"(\s*(?:ON DUPLICATE.*)?)\Z",
+    r"(\s*(?:ON DUPLICATE.*)?);?\s*\Z",
     re.IGNORECASE | re.DOTALL)
 
 
 class Cursor(object):
     """
     This is the object you use to interact with the database.
+
+    Do not create an instance of a Cursor yourself. Call
+    connections.Connection.cursor().
+
+    See `Cursor <https://www.python.org/dev/peps/pep-0249/#cursor-objects>`_ in
+    the specification.
     """
 
     #: Max statement size which :meth:`executemany` generates.
@@ -32,10 +38,6 @@ class Cursor(object):
     _defer_warnings = False
 
     def __init__(self, connection):
-        """
-        Do not create an instance of a Cursor yourself. Call
-        connections.Connection.cursor().
-        """
         self.connection = connection
         self.description = None
         self.rownumber = 0
@@ -260,9 +262,10 @@ class Cursor(object):
         disconnected.
         """
         conn = self._get_db()
-        for index, arg in enumerate(args):
-            q = "SET @_%s_%d=%s" % (procname, index, conn.escape(arg))
-            self._query(q)
+        if args:
+            fmt = '@_{0}_%d=%s'.format(procname)
+            self._query('SET %s' % ','.join(fmt % (index, conn.escape(arg))
+                                            for index, arg in enumerate(args)))
             self.nextset()
 
         q = "CALL %s(%s)" % (procname,

@@ -91,9 +91,14 @@ if PY2:
         value = value.replace('"', '\\"')
         return value
 
-    def escape_bytes(value, mapping=None):
+    def escape_bytes_prefixed(value, mapping=None):
         assert isinstance(value, (bytes, bytearray))
         return b"_binary'%s'" % escape_string(value)
+
+    def escape_bytes(value, mapping=None):
+        assert isinstance(value, (bytes, bytearray))
+        return b"'%s'" % escape_string(value)
+
 else:
     escape_string = _escape_unicode
 
@@ -103,8 +108,11 @@ else:
     # We can escape special chars and surrogateescape at once.
     _escape_bytes_table = _escape_table + [chr(i) for i in range(0xdc80, 0xdd00)]
 
-    def escape_bytes(value, mapping=None):
+    def escape_bytes_prefixed(value, mapping=None):
         return "_binary'%s'" % value.decode('latin1').translate(_escape_bytes_table)
+
+    def escape_bytes(value, mapping=None):
+        return "'%s'" % value.decode('latin1').translate(_escape_bytes_table)
 
 
 def escape_unicode(value, mapping=None):
@@ -212,7 +220,7 @@ def convert_timedelta(obj):
 
     m = TIMEDELTA_RE.match(obj)
     if not m:
-        return None
+        return obj
 
     try:
         groups = list(m.groups())
@@ -228,7 +236,7 @@ def convert_timedelta(obj):
             ) * negate
         return tdelta
     except ValueError:
-        return None
+        return obj
 
 TIME_RE = re.compile(r"(\d{1,2}):(\d{1,2}):(\d{1,2})(?:.(\d{1,6}))?")
 
@@ -260,7 +268,7 @@ def convert_time(obj):
 
     m = TIME_RE.match(obj)
     if not m:
-        return None
+        return obj
 
     try:
         groups = list(m.groups())
@@ -269,7 +277,7 @@ def convert_time(obj):
         return datetime.time(hour=int(hours), minute=int(minutes),
                              second=int(seconds), microsecond=int(microseconds))
     except ValueError:
-        return None
+        return obj
 
 
 def convert_date(obj):
@@ -291,7 +299,7 @@ def convert_date(obj):
     try:
         return datetime.date(*[ int(x) for x in obj.split('-', 2) ])
     except ValueError:
-        return None
+        return obj
 
 
 def convert_mysql_timestamp(timestamp):
@@ -326,7 +334,7 @@ def convert_mysql_timestamp(timestamp):
     try:
         return datetime.datetime(year, month, day, hour, minute, second)
     except ValueError:
-        return None
+        return timestamp
 
 def convert_set(s):
     if isinstance(s, (bytes, bytearray)):
@@ -381,7 +389,6 @@ encoders = {
     set: escape_sequence,
     frozenset: escape_sequence,
     dict: escape_dict,
-    bytearray: escape_bytes,
     type(None): escape_None,
     datetime.date: escape_date,
     datetime.datetime: escape_datetime,
