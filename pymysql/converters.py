@@ -1,10 +1,14 @@
 from ._compat import PY2, text_type, long_type, JYTHON, IRONPYTHON, unichr
 
 import datetime
-import ujson
 from decimal import Decimal
 import re
 import time
+
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 from .constants import FIELD_TYPE, FLAG
 from .charset import charset_by_id, charset_to_encoding
@@ -348,7 +352,7 @@ def through(x):
 
 def convert_json(s):
     try:
-        return ujson.loads(s)
+        return json.loads(s)
     except ValueError:
         return {}
 
