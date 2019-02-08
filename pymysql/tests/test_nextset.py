@@ -1,7 +1,8 @@
-import unittest2
+import pytest
 
-from pymysql.tests import base
+import pymysql
 from pymysql import util
+from pymysql.tests import base
 from pymysql.constants import CLIENT
 
 
@@ -29,6 +30,17 @@ class TestNextset(base.PyMySQLTestCase):
         cur.execute("SELECT 42")
         self.assertEqual([(42,)], list(cur))
 
+    def test_nextset_error(self):
+        con = self.connect(client_flag=CLIENT.MULTI_STATEMENTS)
+        cur = con.cursor()
+
+        for i in range(3):
+            cur.execute("SELECT %s; xyzzy;", (i,))
+            self.assertEqual([(i,)], list(cur))
+            with self.assertRaises(pymysql.ProgrammingError):
+                cur.nextset()
+            self.assertEqual((), cur.fetchall())
+
     def test_ok_and_next(self):
         cur = self.connect(client_flag=CLIENT.MULTI_STATEMENTS).cursor()
         cur.execute("SELECT 1; commit; SELECT 2;")
@@ -38,7 +50,7 @@ class TestNextset(base.PyMySQLTestCase):
         self.assertEqual([(2,)], list(cur))
         self.assertFalse(bool(cur.nextset()))
 
-    @unittest2.expectedFailure
+    @pytest.mark.xfail
     def test_multi_cursor(self):
         con = self.connect(client_flag=CLIENT.MULTI_STATEMENTS)
         cur1 = con.cursor()
